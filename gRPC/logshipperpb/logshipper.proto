@@ -1,0 +1,25 @@
+syntax = "proto3";
+option go_package = "github.com/anshahkhan/logShipper/gRPC/logshipperpb";
+package logshipper;
+
+service LogService {
+  rpc SendLog (LogRequest) returns (LogResponse);
+}
+
+message LogRequest {
+  string org_id = 1;
+  string agent_ip = 2;
+  string hostname = 3;
+  string event_id = 4;
+  string log_name = 5;
+  string source = 6;
+  string level = 7;
+  string user = 8;
+  string description = 9;
+  string timestamp = 10;
+  repeated string tags = 11;
+}
+
+message LogResponse {
+  string status = 1;
+}
