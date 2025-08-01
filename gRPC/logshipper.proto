@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/anshahkhan/logShipper/gRPC/logshipperpb";
+option go_package = "./";
 package logshipper;
 
 service LogService {

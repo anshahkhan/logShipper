@@ -4,7 +4,7 @@
 // - protoc             v6.31.1
 // source: logshipper.proto
 
-package logshipperpb
+package __
 
 import (
 	context "context"

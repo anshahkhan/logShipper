@@ -4,7 +4,7 @@
 // 	protoc        v6.31.1
 // source: logshipper.proto
 
-package logshipperpb
+package __
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -213,7 +213,7 @@ const file_logshipper_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status2H\n" +
 	"\n" +
 	"LogService\x12:\n" +
-	"\aSendLog\x12\x16.logshipper.LogRequest\x1a\x17.logshipper.LogResponseB4Z2github.com/anshahkhan/logShipper/gRPC/logshipperpbb\x06proto3"
+	"\aSendLog\x12\x16.logshipper.LogRequest\x1a\x17.logshipper.LogResponseB\x04Z\x02./b\x06proto3"
 
 var (
 	file_logshipper_proto_rawDescOnce sync.Once

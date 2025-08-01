@@ -3,16 +3,21 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
+	"context"
 	"log"
-	"logshipper/internal"
 	"net"
 	"os"
 	"os/exec"
-	"os/user"
+
+	// "os/user"
 	"regexp"
 	"strings"
 	"time"
+
+	pb "logShipper/gRPC/logshipperpb"
+	"logShipper/internal"
+
+	"google.golang.org/grpc"
 )
 
 func shouldInclude(eventID string, patterns []string) bool {
@@ -73,6 +78,7 @@ func parseLog(output string) map[string]interface{} {
 
 	return logData
 }
+
 func getLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -88,9 +94,8 @@ func getLocalIP() string {
 }
 
 func getTags(logType, eventID, description string) []string {
-	tags := []string{"windows", "agent"} // base tags
+	tags := []string{"windows", "agent"}
 
-	// By log type
 	if strings.Contains(logType, "Sysmon") {
 		tags = append(tags, "sysmon")
 	}
@@ -110,7 +115,6 @@ func getTags(logType, eventID, description string) []string {
 		tags = append(tags, "vpn")
 	}
 
-	// By event ID
 	switch eventID {
 	case "4624":
 		tags = append(tags, "auth", "logon")
@@ -132,17 +136,26 @@ func getTags(logType, eventID, description string) []string {
 func main() {
 	cfg, err := internal.LoadConfig("config.yaml")
 	if err != nil {
-		log.Fatalf("Error loading config: %v", err)
+		log.Fatalf("❌ Error loading config: %v", err)
 	}
+
+	conn, err := grpc.Dial(cfg.ServerIP+":"+cfg.Port, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("❌ Failed to connect to gRPC server: %v", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewLogServiceClient(conn)
+
 	hostname, _ := os.Hostname()
-	agentUser, _ := user.Current()
+	// agentUser, _ := user.Current()
 	localIP := getLocalIP()
 
 	for {
 		for _, logType := range cfg.LogTypes {
 			log.Printf("🔍 Checking logs for: %s", logType)
 
-			cmd := exec.Command("wevtutil", "qe", logType, "/c:30", "/f:text") // try 30 entries
+			cmd := exec.Command("wevtutil", "qe", logType, "/c:30", "/f:text")
 			out, err := cmd.Output()
 			if err != nil {
 				log.Printf("[%s] Error fetching logs: %v", logType, err)
@@ -167,29 +180,32 @@ func main() {
 					continue
 				}
 
-				// DEBUG: Show all events regardless of match
 				log.Printf("[%s] Seen Event ID: %s", logType, eventID)
 
 				if !shouldInclude(eventID, cfg.EventPatterns) {
 					continue
 				}
 
-				logEntry["org_id"] = cfg.OrgID
-				logEntry["hostname"] = hostname
-				logEntry["agent_ip"] = localIP
-				logEntry["agent_user"] = agentUser.Username
-				logEntry["tags"] = getTags(logType, eventID, logEntry["description"].(string))
-				jsonData, err := json.Marshal(logEntry)
-				if err != nil {
-					log.Printf("[%s] Error marshaling JSON: %v", logType, err)
-					continue
-				}
+				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 
-				err = internal.SendToServer(cfg.ServerIP, cfg.Port, jsonData)
+				resp, err := client.SendLog(ctx, &pb.LogRequest{
+					OrgId:       cfg.OrgID,
+					AgentIp:     localIP,
+					Hostname:    hostname,
+					EventId:     eventID,
+					LogName:     logEntry["log_name"].(string),
+					Source:      logEntry["source"].(string),
+					Level:       logEntry["level"].(string),
+					User:        logEntry["user"].(string),
+					Description: logEntry["description"].(string),
+					Timestamp:   logEntry["timestamp"].(string),
+					Tags:        getTags(logType, eventID, logEntry["description"].(string)),
+				})
+				cancel()
 				if err != nil {
-					log.Printf("[%s] Error sending log: %v", logType, err)
+					log.Printf("[%s] ❌ gRPC send error: %v", logType, err)
 				} else {
-					log.Printf("[%s] ✅ Sent Event ID %s", logType, eventID)
+					log.Printf("[%s] ✅ gRPC server response: %s", logType, resp.Status)
 				}
 			}
 		}

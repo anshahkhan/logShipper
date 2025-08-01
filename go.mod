@@ -1,4 +1,4 @@
-module logshipper
+module logShipper
 
 go 1.24.5
 

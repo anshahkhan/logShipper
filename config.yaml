@@ -17,34 +17,34 @@ log_types:
   # - "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational"
 interval_sec: 5
 server_ip: "127.0.0.1"
-port: "9999"
+port: "50051"
 event_id_patterns:
   # - ".*"
-  # - "^1$"
-  # - "^3$"
-  # - "^21$" #RDP logon
+  - "^1$"
+  - "^3$"
+  - "^21$" #RDP logon
   - "^22$" #DNS Query
   - "^3012$" #DNS
   - "^3014$" #DNS
-  # - "^23$" #RDP logoff
-  # - "^32$" #Plugin
-  # - "^36$" #Errors
-  # - "^54$" #Shutdown notice
+  - "^23$" #RDP logoff
+  - "^32$" #Plugin
+  - "^36$" #Errors
+  - "^54$" #Shutdown notice
   # - "^4104$" #powershell script block logging off (if enabled)
-  # - "^4634$"
-  # - "^4672$"
-  # - "^4624$"
-  # - "^4625$"
-  # - "^4800$"
-  # - "^4801$"
-  # - "^1102$"
-  # - "^1116$"
-  # - "^6006$"
-  # - "^20225$"
-  # - "^20226$"
-  # - "^20227$"
-  # - "^20228$"
-  # - "^20269$"
-  # - "^20271$"
-  # - "^4688$"
+  - "^4634$"
+  - "^4672$"
+  - "^4624$"
+  - "^4625$"
+  - "^4800$"
+  - "^4801$"
+  - "^1102$"
+  - "^1116$"
+  - "^6006$"
+  - "^20225$"
+  - "^20226$"
+  - "^20227$"
+  - "^20228$"
+  - "^20269$"
+  - "^20271$"
+  - "^4688$"
 
