@@ -4,15 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"log"
 	"net"
 	"os"
 	"os/exec"
-
-	// "os/user"
 	"regexp"
 	"strings"
 	"time"
+
+	// "os/user"
 
 	pb "logShipper/gRPC/logshipperpb"
 	"logShipper/internal"
@@ -20,6 +23,11 @@ import (
 	"google.golang.org/grpc"
 )
 
+func hashLogEntry(log map[string]interface{}) string {
+	raw, _ := json.Marshal(log)
+	hash := sha256.Sum256(raw)
+	return hex.EncodeToString(hash[:])
+}
 func shouldInclude(eventID string, patterns []string) bool {
 	for _, pattern := range patterns {
 		matched, err := regexp.MatchString(pattern, eventID)
@@ -132,6 +140,27 @@ func getTags(logType, eventID, description string) []string {
 
 	return tags
 }
+func cleanupOldEntries() {
+	for k, t := range sentLogs {
+		if time.Since(t) > deduplicationWindow {
+			delete(sentLogs, k)
+		}
+	}
+}
+
+var sentLogs = make(map[string]time.Time)
+
+const deduplicationWindow = 2 * time.Minute // keep for 2 mins
+func isDuplicate(entry map[string]interface{}) bool {
+	key := hashLogEntry(entry)
+	if t, exists := sentLogs[key]; exists {
+		if time.Since(t) < deduplicationWindow {
+			return true
+		}
+	}
+	sentLogs[key] = time.Now()
+	return false
+}
 
 func main() {
 	cfg, err := internal.LoadConfig("config.yaml")
@@ -180,6 +209,10 @@ func main() {
 					continue
 				}
 
+				if isDuplicate(logEntry) {
+					log.Printf("[%s] ⚠️ Duplicate log skipped: Event ID %s at %s", logType, logEntry["event_id"], logEntry["timestamp"])
+					continue
+				}
 				log.Printf("[%s] Seen Event ID: %s", logType, eventID)
 
 				if !shouldInclude(eventID, cfg.EventPatterns) {
@@ -211,6 +244,7 @@ func main() {
 		}
 
 		log.Printf("🔁 Sleeping for %ds...\n", cfg.IntervalSec)
+		cleanupOldEntries()
 		time.Sleep(time.Duration(cfg.IntervalSec) * time.Second)
 	}
 }
